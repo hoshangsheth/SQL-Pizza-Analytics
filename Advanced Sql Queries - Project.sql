@@ -1,0 +1,66 @@
+-- PIZZA SALES PROJECT - ADVANCED SQL QUERIES--
+
+-- Q1) Calculate the percentage contribution of each pizza category to total revenue.
+SELECT 
+    PIZZA_TYPES.CATEGORY AS CATEGORY,
+    CONCAT(ROUND(SUM(ORDER_DETAILS.QUANTITY * PIZZAS.PRICE) / (SELECT 
+                            ROUND(SUM(ORDER_DETAILS.QUANTITY * PIZZAS.PRICE),
+                                        2) AS TOTAL_SALES
+                        FROM
+                            ORDER_DETAILS
+                                JOIN
+                            PIZZAS ON PIZZAS.PIZZA_ID = ORDER_DETAILS.PIZZA_ID) * 100,
+                    2),
+            '%') AS REVENUE
+FROM
+    PIZZA_TYPES
+        JOIN
+    PIZZAS ON PIZZA_TYPES.PIZZA_TYPE_ID = PIZZAS.PIZZA_TYPE_ID
+        JOIN
+    ORDER_DETAILS ON ORDER_DETAILS.PIZZA_ID = PIZZAS.PIZZA_ID
+GROUP BY CATEGORY
+ORDER BY REVENUE DESC;
+
+
+-- Q2) Analyze the cumulative revenue generated over time.
+SELECT 
+    ORDERS.ORDER_DATE,
+    ROUND(SUM(ORDER_DETAILS.QUANTITY * PIZZAS.PRICE), 0) AS DAILY_REVENUE,
+    SUM(ROUND(SUM(ORDER_DETAILS.QUANTITY * PIZZAS.PRICE),0)) OVER (ORDER BY ORDERS.ORDER_DATE) AS CUMULATIVE_REVENUE
+FROM 
+    ORDER_DETAILS
+JOIN 
+    PIZZAS ON ORDER_DETAILS.PIZZA_ID = PIZZAS.PIZZA_ID
+JOIN 
+    ORDERS ON ORDER_DETAILS.ORDER_ID = ORDERS.ORDER_ID
+GROUP BY 
+    ORDERS.ORDER_DATE
+ORDER BY 
+    ORDERS.ORDER_DATE;
+    
+    
+    -- Q3) Determine the top 3 most ordered pizza types based on revenue for each pizza category.
+    SELECT NAME, CATEGORY, REVENUE 
+FROM (
+    SELECT 
+        CATEGORY, 
+        NAME, 
+        REVENUE, 
+        RANK() OVER(PARTITION BY CATEGORY ORDER BY REVENUE DESC) AS RNK
+    FROM (
+        SELECT 
+            PIZZA_TYPES.CATEGORY, 
+            PIZZA_TYPES.NAME AS NAME,
+            SUM(ORDER_DETAILS.QUANTITY * PIZZAS.PRICE) AS REVENUE
+        FROM 
+            PIZZA_TYPES 
+        JOIN 
+            PIZZAS ON PIZZA_TYPES.PIZZA_TYPE_ID = PIZZAS.PIZZA_TYPE_ID
+        JOIN 
+            ORDER_DETAILS ON PIZZAS.PIZZA_ID = ORDER_DETAILS.PIZZA_ID
+        GROUP BY 
+            PIZZA_TYPES.CATEGORY, 
+            PIZZA_TYPES.NAME
+    ) AS RevenueByPizzaType
+) AS RankedRevenue
+WHERE RNK <= 3;
